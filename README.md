@@ -1,2 +1,2 @@
 # SleepEcologyInSpiderMonkeys
-Bachelor's Thesis
+Bachelor's Thesis, University of Konstanz
