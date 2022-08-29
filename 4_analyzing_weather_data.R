@@ -116,6 +116,7 @@ for( i in 2:nrow(temperature_data)){
 save(rain_data, file = "rain_data.RData")
 save(temperature_data, file = "temperature_data.RData")
 
+# plot the data #
 ggplot(temperature_data, aes(x = rain, y = raw)) + geom_point() + theme_classic()
 
 
