@@ -1,0 +1,267 @@
+### Impact of daily activity on sleep efficency ###
+
+library(brms)
+library(ggplot2)
+library(cmdstanr)
+install.packages("ggdist")
+
+options(mc.cores = parallel::detectCores()) 
+
+### Correlation between sleep and previos day VeDBA ###
+
+sleep_eff_vedba<- brm(bf(sleep_eff ~ prev_day_ave_vedba + (prev_day_ave_vedba | tag)), 
+                        
+                        data = sleep_distance[complete.cases(sleep_per_nona[, c("sleep_eff" , "prev_day_ave_vedba")]),],
+                        
+                        save_pars = save_pars(all = TRUE),
+                        
+                        iter = 2000,
+                        
+                        init = 0, #because log function needs to start sampling above 0
+                        
+                        prior = c (prior(normal(0, 1.5), class = Intercept),
+                                   
+                                   prior(normal(0, 1.5), class = b),
+                                   
+                                   prior(exponential(2), class = sd)),
+                        
+                        family = Beta (link = "logit"), 
+                        
+                        backend = "cmdstanr",
+                        
+                        control = list(max_treedepth = 10, adapt_delta = .999))
+
+summary(sleep_eff_vedba)
+pp_check(sleep_eff_vedba)
+loo_R2(sleep_eff_vedba, probs = c(0.05, 0.95),)
+
+# plot the model 
+conditional_effects(sleep_eff_vedba, spaghetti = TRUE)
+plot(conditional_effects(sleep_eff_vedba, spaghetti = TRUE), points = TRUE)
+
+hN = hypothesis(sleep_eff_vedba,c("b_prev_day_ave_vedba>0","b_prev_day_ave_vedba<0"),class="")
+print(hN,digits=3)
+
+### Calculating the traveled distance the previous day, see if VeDBA can be explained by it, and how it correlates with sleep ###
+unique(GPSdata$day)
+GPSdata$loopID=paste(GPSdata$individual.local.identifier, GPSdata$day, sep = "_")
+GPSsplit=split(GPSdata,as.factor(GPSdata$loopID))
+traveldistance=c()
+
+# calculate the distance in meters
+for(i in 1:length(GPSsplit)){
+  ID=unique(GPSsplit[[i]]$individual.local.identifier)
+  Date=as.character(min(unique(lubridate::date(GPSsplit[[i]]$timestamp))), na.rm = TRUE)
+  Z=GPSsplit[[i]]$location.long.2+1i*GPSsplit[[i]]$location.lat.2
+  distance=sum(Mod(diff(Z)), na.rm = TRUE)
+  res=data.frame(t(c(ID, Date, distance)))
+  print(length(res))
+  traveldistance[i]=list(res)
+}
+traveldistance=do.call(rbind,traveldistance)
+
+# change the column names
+colnames(traveldistance)= c("tag", "Date", "distance")
+traveldistance$Date=as.Date(traveldistance$Date)
+traveldistance$distance=as.numeric(traveldistance$distance)
+
+#merge data frames into one 
+sleep_distance = merge(sleep_per_nona, traveldistance,
+      by.x = c("tag","night"), by.y = c("tag", "Date"), all.x = TRUE)
+
+#drop an outlier in distance
+sleep_distance = sleep_distance[-which(sleep_distance$distance == max(sleep_distance$distance)), ]
+
+save (sleep_distance, file = "sleep_distance")
+
+options(mc.cores = parallel::detectCores()) 
+
+#### correlation between VeDBA and traveled distance ###
+
+distance_model <- brm(bf(prev_day_ave_vedba ~ distance + (distance | tag)), 
+                      
+                      data = sleep_distance[complete.cases(sleep_distance[, c("prev_day_ave_vedba" , "distance")]),],
+                      
+                      save_pars = save_pars(all = TRUE),
+                      
+                      iter = 25000,
+                      
+                      #init = 0, #because log function needs to start sampling above 0
+                      
+                      prior = c (prior(student_t(3, 3, 30), class = Intercept),
+                                 
+                                 prior(student_t(3, 0, 5), class = b),
+                                 
+                                 prior(student_t(3, 0, 10), class = sd)
+                                 ),
+                      
+                      family = student(), 
+                      
+                      backend = "cmdstanr",
+                      
+                      control = list(max_treedepth = 10, adapt_delta = .999))
+
+summary(distance_model)
+pp_check(distance_model)
+print(summary(distance_model), digits = 10)
+loo_R2(distance_model, probs = c(0.05, 0.95),)
+
+# check the interval
+hO = hypothesis(distance_model,c("b_distance>0","b_distance<0"),class="")
+print(hO,digits=3)
+
+#plot the model 
+conditional_effects(distance_model, spaghetti = TRUE)
+plot(conditional_effects(distance_model, spaghetti = TRUE), points = TRUE)
+
+
+
+##### Correlation between distance  and sleep efficency of the following night ####
+
+sleep_eff_distance <- brm(bf(sleep_eff ~ distance + (distance | tag)), 
+                      
+                      data = sleep_distance[complete.cases(sleep_distance[, c("distance" , "sleep_eff")]),],
+                      
+                      save_pars = save_pars(all = TRUE),
+                      
+                      iter = 40000,
+                      
+                      init = 0, #because log function needs to start sampling above 0
+                      
+                      prior = c(
+                        
+                      prior(normal(0, 1.5), class = Intercept),
+                      
+                      prior(exponential(.65), class = sd, group = tag ),
+                      
+                      prior(exponential(.65), class = sd, group = tag, coef = distance ),
+                      
+                      prior(exponential(.65), class = sd, group = tag, coef = Intercept ),
+                      
+                      prior(normal(0, .5), class = b )
+                      ),
+                      
+                      family = Beta (link = "logit"), 
+                      
+                      backend = "cmdstanr",
+                      
+                      control = list(max_treedepth = 10, adapt_delta = .999999))
+
+summary(sleep_eff_distance)
+pp_check(sleep_eff_distance)
+print(summary(sleep_eff_distance), digits = 10)
+loo_R2(sleep_eff_distance, probs = c(0.05, 0.95 ),)
+
+# check the interval
+hP = hypothesis(sleep_eff_distance,c("b_distance>0","b_distance<0"),class="")
+print(hP, digits=3)
+ 
+ # plot the model
+conditional_effects(sleep_eff_distance, spaghetti = TRUE)
+plot(conditional_effects(sleep_eff_distance, spaghetti = TRUE), points = TRUE)
+
+
+
+################################################################################
+
+####Correlation between TST and travelled distance during the day #### 
+mean(sleep_distance$TST)
+
+TST_distance_model <- brm(bf(TST ~ distance + (distance | tag)), 
+                     data = sleep_distance[complete.cases(sleep_distance[,c("TST", "distance")]),],
+                     save_pars = save_pars(all = TRUE),
+                     iter = 10000,
+                     init = 0,
+                     prior = c(
+                     prior(student_t(3, 430, 30), class = Intercept),
+                     prior(student_t(3, 0, 20), class = b ),
+                     prior(normal(0, 10), class = sd)
+                     ),
+                     family = skew_normal, 
+                     backend = "cmdstanr",
+                     control = list(max_treedepth = 10, adapt_delta = .999))
+summary(TST_distance_model)
+pp_check(TST_distance_model)
+loo_R2(TST_distance_model, probs = c(0.05, 0.95 ),)
+
+# check the interval
+hQ= hypothesis(TST_distance_model,c("b_distance>0","b_distance<0"),class="")
+print(hQ, digits=3)
+
+#plot the model
+conditional_effects(TST_distance_model, spaghetti = TRUE)
+plot(conditional_effects(TST_distance_model, spaghetti = TRUE), points = TRUE) 
+
+
+################################################################################
+mean(sleep_distance$SPT)
+
+SPT_distance_model <- brm(bf(SPT ~ distance + (distance | tag)), 
+                     data = sleep_distance[complete.cases(sleep_distance[,c("distance")]),],
+                     save_pars = save_pars(all = TRUE),
+                     iter = 3000,
+                     init = 0,
+                     prior = c(
+                     prior(student_t(3, 570, 70), class = Intercept),
+                     prior(student_t(3, 0, 10), class = alpha ),
+                     prior(normal(0, 20), class = b )
+                     ),
+                     family = skew_normal(), #because of the distribution of the rain and temp data
+                     backend = "cmdstanr",
+                     control = list(max_treedepth = 10, adapt_delta = .999999))
+summary(SPT_distance_model)
+pp_check(SPT_distance_model)
+loo_R2(SPT_distance_model, probs = c(0.05, 0.95),)
+
+# check the interval
+hR = hypothesis(SPT_distance_model,c("b_distance>0","b_distance<0"),class="")
+print(hR, digits=3)
+
+
+#plot the model
+conditional_effects(SPT_distance_model, spaghetti = TRUE)
+plot(conditional_effects(SPT_distance_model, spaghetti = TRUE), points = TRUE)
+
+
+
+
+### Configuring plots ### 
+
+# sleep eff - vedba model #
+# vedba and sleep efficiency # 
+sleep_VeDBA_Figure_11 = plot(conditional_effects(sleep_eff_vedba, spaghetti = TRUE), points = F)[[1]] 
+sleep_VeDBA_Figure_11 = sleep_VeDBA_Figure_11  + geom_point(data = sleep_distance, aes( x = prev_day_ave_vedba, y = sleep_eff)) + 
+  labs(x = "VeDBA", y = "Sleep efficiency (TST/SPT)") + 
+  theme_classic()
+
+# distance model #
+# traveled distance and vedba #
+VeDBA_distance_Figure_12 = plot(conditional_effects(distance_model, spaghetti = TRUE), points = F)[[1]]
+VeDBA_distance_Figure_12 = VeDBA_distance_Figure_12  + geom_point(data = sleep_distance, aes( x = distance, y = prev_day_ave_vedba)) + 
+  labs(x = "Distance travelled (m)", y = "VeDBA") + 
+  theme_classic()
+
+
+# sleep eff - distance model #
+sleep_distance_Figure_13 = plot(conditional_effects(sleep_eff_distance, spaghetti = TRUE), points = F)[[1]]
+sleep_distance_Figure_13 = sleep_distance_Figure_13  + geom_point(data = sleep_distance, aes( x = distance, y = sleep_eff)) + 
+  labs(x = "Distance (m)", y = "Sleep efficiency (TST/SPT)") + 
+  theme_classic()
+
+# arrange plots next to each other #
+ggpubr::ggarrange(sleep_VeDBA_Figure_11, sleep_distance_Figure_13)
+
+# TST and distance model #
+TST_distance_Figure_14 = plot(conditional_effects(TST_distance_model, spaghetti = TRUE), points = F)[[1]]
+TST_distance_Figure_14 = TST_distance_Figure_14  + geom_point(data = sleep_distance, aes( x = distance, y = TST)) + 
+  labs(x = "Distance travelled (m)", y = "Total sleep time (min)") + 
+  theme_classic()
+
+# SPT and distance model #
+SPT_distance_Figure_15= plot(conditional_effects(SPT_distance_model, spaghetti = TRUE), points = F)[[1]]
+SPT_distance_Figure_15 = SPT_distance_Figure_15   + geom_point(data = sleep_distance, aes( x = distance, y = SPT)) + 
+  labs(x = "Distance travelled (m)", y = "Sleep period time (min)") + 
+  theme_classic()
+
+# arrange the plots next to each other #
+ggpubr::ggarrange(TST_distance_Figure_14, SPT_distance_Figure_15)
