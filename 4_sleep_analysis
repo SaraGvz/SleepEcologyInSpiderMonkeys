@@ -386,7 +386,7 @@ lonlat_to_utm <- function( df, lon_name = 'lon', lat_name = 'lat', crs_utm = CRS
 
 ################## Read in the d1 (accelerometer burst) data ###################
 
-## d1 is a dataframe with a row for each minute for each baboon. Each row contains the raw (or interpolated) GPS acc burst, and several different measures calculated from bursts (like VeDBA)
+## d1 is a dataframe with a row for each minute for each spider monkey. Each row contains the raw (or interpolated) GPS acc burst, and several different measures calculated from bursts (like VeDBA)
 d1 <- fread( "DATA/sleep_analysis/full_night_and_day_data.csv" )
 d1 = acc_dat
 ## turn the data table into a dataframe
