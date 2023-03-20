@@ -1,4 +1,4 @@
-#### Downloading acc data from movebank ####
+#### Downloading accelerometry data from movebank ####
 
 library(getPass)  
 install.packages("move")
@@ -7,7 +7,7 @@ library(move)
 #store password for movebank
 pass <- getPass::getPass() ##keep password confidential
 
-# read in individuals names
+#read in individuals names
 names=read.csv('~/Documents/FFT_Animal_Names.csv') #wd of the list with the animals names you will use
 names=unique(names$individual.local.identifier)
 names=strsplit(names, " ")
