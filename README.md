@@ -1,5 +1,5 @@
 # SleepEcologyInSpiderMonkeys
-Bachelor's Thesis, University of Konstanz
+Bachelor's Thesis, University of Konstanz, Max-Planck Institute for Animal Behavior 
 This repository includes all code needed to reproduce the results from my Bachelor's thesis: "Sleep ecology in spider monkeys (Ateles geoffroyi)" 
 
 The accelerometry and GPS data used for this research can be found on Movebank, under the name "Food for thought". The rain and temperature data is collected by the Smithsonian Research Institute on Barro Colorado Island in Panama, and can be downloaded from their website. 
