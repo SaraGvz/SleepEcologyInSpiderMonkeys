@@ -48,14 +48,14 @@ if(class(complete_data_trim)=="try-error"){
 names( complete_data_trim ) <- c( 'tag', 'local_timestamp', 'eobs_accelerations_raw', 'sampling_freq_per_axis', 'species' )
 head( complete_data_trim )
 
-# trim the data to only the rows that contain capuchin data and only those rows that have ACC data
-acc_dat <- complete_data_trim[ complete_data_trim$eobs_accelerations_raw != "" & complete_data_trim$species == species, ] #delets everything that is not capuchin
+# trim the data to only the rows that contain spider monkey data and only those rows that have ACC data
+acc_dat <- complete_data_trim[ complete_data_trim$eobs_accelerations_raw != "" & complete_data_trim$species == species, ] #deletes everything that is not spider monkey
 
 # remove complete_data and complete_data_trim so that they don't take up so much ram
 rm( complete_data, complete_data_trim ) #allows to delete things from the environment, that are not needed anymore
 gc() #garbage collection to free up ram 
 
-head( acc_dat ) #prints first 5 rows to conrtol the run of the data worked
+head( acc_dat ) #prints first 5 rows to control the run of the data worked
 #tail would show the last 5 rows or str would show the character of the data or class (object)
 
 length( unique( acc_dat$eobs_accelerations_raw ))
@@ -129,8 +129,8 @@ acc_dat$log_vedba <- log( acc_dat$ave_vedba ) #log that mean
 write.csv(acc_dat, "Working-directory/full_night_and_day_data.csv", row.names = F) #put the working directory path of the folder where you want to save the file 
 
 
-
 head( acc_dat )
+
 #new accdata saved
 accdata2=accdata2[which(accdata2$individual_taxon_canonical_name=="Species name"),]
 IDs = data.frame(unique(cbind(accdata2$individual_id, accdata2$individual_local_identifier, accdata2$tag_local_identifier)))
